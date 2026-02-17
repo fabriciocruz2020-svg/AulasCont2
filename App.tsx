@@ -42,11 +42,10 @@ const App: React.FC = () => {
       if (prev.badges.includes(badgeId)) return prev;
       const badge = BADGES.find(b => b.id === badgeId);
       if (badge) setActiveBadge(badge);
-      return { ...prev, badges: [...prev.badges, badgeId], score: prev.score + 1000 };
+      return { ...prev, badges: [...prev.badges, badgeId], score: prev.score + 5 }; // Bônus de badge
     });
   }, []);
 
-  // Effect to check for mission completions whenever state changes
   useEffect(() => {
     MISSIONS.forEach(mission => {
       if (!gameState.completedMissions.includes(mission.id) && mission.check(gameState)) {
@@ -94,14 +93,13 @@ const App: React.FC = () => {
     let nextStepIndex = gameState.tutorialStepIndex;
     let isModeTutorial = gameState.isTutorialMode;
     let moduleJustFinished = false;
-    let addedScore = 50; 
+    let addedScore = 0; 
 
     if (isModeTutorial && currentStep) {
       if (currentStep.validate(newAccounts, newTransaction)) {
         nextStepIndex += 1;
-        addedScore += 200; 
+        addedScore = 1; // 1 pt por acerto no tutorial
         
-        // Badge Check: First Step
         if (currentStep.id === 'm1s1') {
           setTimeout(() => unlockBadge('first_step'), 500);
         }
@@ -109,9 +107,7 @@ const App: React.FC = () => {
         if (nextStepIndex >= currentTutorialSteps.length) {
           isModeTutorial = false;
           moduleJustFinished = true;
-          addedScore += 500;
           
-          // Module specific badges
           if (gameState.module === 1) setTimeout(() => unlockBadge('balance_master'), 500);
           if (gameState.module === 2) setTimeout(() => unlockBadge('dual_mind'), 500);
           if (gameState.module === 3) setTimeout(() => unlockBadge('operational_pro'), 500);
@@ -119,7 +115,7 @@ const App: React.FC = () => {
         }
       } else {
         handleAuditRequest(entries, `Tutorial Erro: ${currentStep.targetDescription}`);
-        return; // Stop here if tutorial step failed validation
+        return;
       }
     }
 
@@ -160,7 +156,7 @@ const App: React.FC = () => {
 
   const handleSwipeCorrect = () => {
     const nextChallenge = gameState.module2ChallengeIndex + 1;
-    const addedScore = 100;
+    const addedScore = 1; // 1 pt por acerto no swipe
     
     if (nextChallenge >= SWIPE_CHALLENGES_M2.length) {
       setGameState(prev => ({ 
@@ -215,7 +211,7 @@ const App: React.FC = () => {
             >
               <div className="flex flex-col items-end">
                   <span className="text-[9px] uppercase font-black text-amber-400">Score</span>
-                  <span className="text-white text-sm font-mono font-bold leading-none">{gameState.score}</span>
+                  <span className="text-white text-sm font-mono font-bold leading-none">{gameState.score} PTS</span>
               </div>
               <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-lg">🏆</div>
             </button>
@@ -260,7 +256,7 @@ const App: React.FC = () => {
                           <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full uppercase">Módulo Concluído</span>
                           <h2 className="text-xl font-bold text-slate-800">{currentModuleData?.description}</h2>
                       </div>
-                      <p className="text-sm text-slate-500 mb-4">Você já domina os conceitos básicos deste módulo. Continue explorando ou avance para o próximo desafio!</p>
+                      <p className="text-sm text-slate-500 mb-4">Você dominou os 10 passos deste módulo. Siga em frente!</p>
                       <div className="space-y-2">
                         {currentModuleData?.objectives.map((obj, i) => (
                            <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
@@ -293,10 +289,10 @@ const App: React.FC = () => {
                     </div>
                     <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
                         {gameState.transactions.length === 0 ? (
-                            <div className="p-12 text-center text-slate-300 italic text-sm">Nenhum evento econômico registrado ainda.</div>
+                            <div className="p-12 text-center text-slate-300 italic text-sm">Nenhum evento registrado ainda.</div>
                         ) : (
                             gameState.transactions.map((t) => (
-                                <div key={t.id} className="p-4 hover:bg-slate-50/50 transition-colors animate-in slide-in-from-top-2">
+                                <div key={t.id} className="p-4 hover:bg-slate-50/50 transition-colors">
                                     <div className="flex justify-between items-start mb-2">
                                         <h4 className="font-semibold text-sm text-slate-700">{t.description}</h4>
                                         <span className="text-[10px] font-bold text-slate-400">{t.date.toLocaleTimeString()}</span>
