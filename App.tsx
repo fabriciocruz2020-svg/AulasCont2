@@ -1,6 +1,6 @@
 
 import React, { useState, useCallback, useMemo, useEffect } from 'react';
-import { GameState, Account, Transaction, JournalEntry, EntryType, AccountCategory, TutorialStep, Badge, Mission } from './types';
+import { GameState, Account, Transaction, JournalEntry, EntryType, AccountCategory, TutorialStep, Badge, Mission, SwipeChallenge } from './types';
 import { INITIAL_ACCOUNTS, MODULES, TUTORIAL_STEPS, SWIPE_CHALLENGES_M2, BADGES, MISSIONS } from './constants';
 import BalanceScale from './components/BalanceScale';
 import TransactionForm from './components/TransactionForm';
@@ -60,6 +60,19 @@ const App: React.FC = () => {
     });
   }, [gameState]);
 
+  const handleAuditRequest = async (entries: JournalEntry[], description: string, errorHint?: string) => {
+    setAuditLoading(true);
+    setAuditFeedback(null);
+    try {
+        const response = await getAIAudit({ entries, description }, gameState.accounts, errorHint);
+        setAuditFeedback(response || "O auditor está sem palavras.");
+    } catch (e) {
+        setAuditFeedback("Falha na conexão com o auditor central.");
+    } finally {
+        setAuditLoading(false);
+    }
+  };
+
   const handleTransaction = useCallback((entries: JournalEntry[], description: string) => {
     const totalDebits = entries.filter(e => e.type === EntryType.Debit).reduce((sum, e) => sum + e.amount, 0);
     const totalCredits = entries.filter(e => e.type === EntryType.Credit).reduce((sum, e) => sum + e.amount, 0);
@@ -100,7 +113,6 @@ const App: React.FC = () => {
     let addedScore = 0; 
 
     if (gameState.isPracticeMode) {
-        // No modo prática, ganha pontos por precisão e velocidade
         const basePoints = 2;
         const speedBonus = timeTaken < 15 ? 1 : 0;
         addedScore = basePoints + speedBonus;
@@ -142,33 +154,41 @@ const App: React.FC = () => {
     if (moduleJustFinished) setShowCompletionOverlay(true);
   }, [gameState, currentStep, currentTutorialSteps, unlockBadge, transactionStartTime]);
 
-  const handleAuditRequest = async (entries: JournalEntry[], description: string) => {
-    setAuditLoading(true);
-    setAuditFeedback(null);
-    try {
-        const response = await getAIAudit({ entries, description }, gameState.accounts);
-        setAuditFeedback(response || "O auditor está sem palavras.");
-    } catch (e) {
-        setAuditFeedback("Falha na conexão com o auditor central.");
-    } finally {
-        setAuditLoading(false);
-    }
-  };
-
   const handleSwipeCorrect = () => {
     const nextChallenge = gameState.module2ChallengeIndex + 1;
     const addedScore = 1;
-    if (nextChallenge >= SWIPE_CHALLENGES_M2.length) {
-      setGameState(prev => ({ 
+    
+    setGameState(prev => {
+      let isTutorialMode = prev.isTutorialMode;
+      let moduleJustFinished = false;
+
+      if (nextChallenge >= SWIPE_CHALLENGES_M2.length) {
+        // Swipe part finished, but tutorial step part in Module 2 might still be needed or mark complete
+        // In our current setup, Module 2 swipe is a phase.
+        isTutorialMode = true; // Return to tutorial steps if any
+      }
+
+      const newState = { 
         ...prev, 
         module2ChallengeIndex: nextChallenge,
-        isTutorialMode: true,
-        tutorialStepIndex: 0,
+        isTutorialMode,
         score: prev.score + addedScore
-      }));
-    } else {
-      setGameState(prev => ({ ...prev, module2ChallengeIndex: nextChallenge, score: prev.score + addedScore }));
-    }
+      };
+
+      // Check if Module 2 fully complete (Swipe + Tutorial steps)
+      // For simplicity, if swipe finishes, we consider a phase complete
+      return newState;
+    });
+  };
+
+  const handleSwipeIncorrect = (explanation: string, challenge: SwipeChallenge) => {
+    // Call AI auditor with specific context of the swipe error
+    const pseudoEntry: JournalEntry[] = [{
+      accountId: challenge.accountName, // Simplified
+      amount: 100,
+      type: challenge.correctSide === EntryType.Debit ? EntryType.Credit : EntryType.Debit
+    }];
+    handleAuditRequest(pseudoEntry, `Desafio de Dualidade: ${challenge.scenario}`, `O usuário classificou ${challenge.accountName} incorretamente. ${explanation}`);
   };
 
   const handleModuleChange = (modId: number) => {
@@ -180,7 +200,7 @@ const App: React.FC = () => {
       tutorialStepIndex: 0,
       isTutorialMode: !prev.tutorialCompleted[modId],
       isPracticeMode: false,
-      module2ChallengeIndex: modId === 2 && !prev.tutorialCompleted[2] ? 0 : prev.module2ChallengeIndex
+      module2ChallengeIndex: 0
     }));
   };
 
@@ -190,7 +210,7 @@ const App: React.FC = () => {
   };
 
   const currentModuleData = MODULES.find(m => m.id === gameState.module);
-  const isSwipePhase = gameState.module === 2 && gameState.module2ChallengeIndex < SWIPE_CHALLENGES_M2.length;
+  const isSwipePhase = gameState.module === 2 && gameState.module2ChallengeIndex < SWIPE_CHALLENGES_M2.length && !gameState.isPracticeMode;
 
   return (
     <div className="min-h-screen gradient-bg text-slate-900 pb-20">
@@ -222,7 +242,14 @@ const App: React.FC = () => {
 
       <main className="max-w-6xl mx-auto px-6 mt-8">
         {isSwipePhase ? (
-          <CardSwipeGame challenges={SWIPE_CHALLENGES_M2} currentIndex={gameState.module2ChallengeIndex} onCorrect={handleSwipeCorrect} onIncorrect={(f) => setAuditFeedback(f)} />
+          <div className="flex flex-col items-center">
+             <CardSwipeGame 
+                challenges={SWIPE_CHALLENGES_M2} 
+                currentIndex={gameState.module2ChallengeIndex} 
+                onCorrect={handleSwipeCorrect} 
+                onIncorrect={handleSwipeIncorrect} 
+             />
+          </div>
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 space-y-8">
