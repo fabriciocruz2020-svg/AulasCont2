@@ -7,8 +7,6 @@ interface FinancialReportsProps {
 }
 
 const FinancialReports: React.FC<FinancialReportsProps> = ({ accounts }) => {
-  const getBalance = (id: string) => accounts.find(a => a.id === id)?.balance || 0;
-
   const assets = accounts.filter(a => a.category === AccountCategory.Asset);
   const liabilities = accounts.filter(a => a.category === AccountCategory.Liability);
   const equity = accounts.filter(a => a.category === AccountCategory.Equity);
@@ -25,87 +23,111 @@ const FinancialReports: React.FC<FinancialReportsProps> = ({ accounts }) => {
   const netProfit = totalRevenue - totalExpense;
 
   return (
-    <div className="space-y-6 animate-in fade-in duration-700">
+    <div className="space-y-8 animate-in fade-in duration-700">
       {/* DRE Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-3 bg-indigo-50 border-b border-indigo-100 flex justify-between items-center">
-            <h3 className="text-sm font-bold text-indigo-900 uppercase tracking-wider">Demonstração de Resultado (DRE)</h3>
-            <span className="text-[10px] bg-indigo-200 text-indigo-700 px-2 py-0.5 rounded font-black">PERÍODO ATUAL</span>
+      <div className="bg-slate-900 rounded-3xl shadow-2xl overflow-hidden border border-slate-800">
+        <div className="px-7 py-5 bg-indigo-600 flex justify-between items-center">
+            <h3 className="text-xs font-black text-white uppercase tracking-[0.2em]">Demonstração de Resultado (DRE)</h3>
+            <span className="text-[9px] bg-white/20 text-white px-3 py-1 rounded-full font-black border border-white/20 uppercase tracking-widest">Performance</span>
         </div>
-        <div className="p-6 space-y-2">
-            <div className="flex justify-between text-sm">
-                <span className="text-slate-600">(+) Receita Bruta de Vendas</span>
-                <span className="font-mono font-bold text-emerald-600">R$ {totalRevenue.toFixed(2)}</span>
+        <div className="p-8 space-y-4">
+            <div className="flex justify-between items-center text-sm">
+                <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">(+) Receita Operacional Bruta</span>
+                <span className="font-mono font-black text-emerald-400 text-lg">R$ {totalRevenue.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="flex justify-between text-sm">
-                <span className="text-slate-600">(-) Custo das Mercadorias Vendidas (CMV)</span>
-                <span className="font-mono font-bold text-red-500">R$ {totalExpense.toFixed(2)}</span>
+            <div className="flex justify-between items-center text-sm pb-4 border-b border-slate-800">
+                <span className="text-slate-400 font-bold uppercase text-[10px] tracking-wider">(-) Custos e Despesas Variáveis</span>
+                <span className="font-mono font-black text-rose-400 text-lg">R$ {totalExpense.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
             </div>
-            <div className="pt-2 mt-2 border-t border-slate-100 flex justify-between">
-                <span className="font-bold text-slate-800">(=) LUCRO / PREJUÍZO LÍQUIDO</span>
-                <span className={`font-mono font-black ${netProfit >= 0 ? 'text-emerald-600' : 'text-red-600'}`}>
-                    R$ {netProfit.toFixed(2)}
+            <div className="pt-4 flex justify-between items-center bg-white/5 p-4 rounded-2xl border border-white/10">
+                <div>
+                  <span className="font-black text-white uppercase text-xs tracking-widest block mb-1">(=) LUCRO / PREJUÍZO LÍQUIDO</span>
+                  <span className="text-[9px] text-slate-500 font-bold uppercase">Resultado do Exercício</span>
+                </div>
+                <span className={`font-mono text-3xl font-black ${netProfit >= 0 ? 'text-emerald-400' : 'text-rose-400'}`}>
+                    R$ {netProfit.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
                 </span>
             </div>
         </div>
       </div>
 
       {/* Balanço Section */}
-      <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-        <div className="px-6 py-3 bg-slate-50 border-b border-slate-200">
-            <h3 className="text-sm font-bold text-slate-800 uppercase tracking-wider">Balanço Patrimonial</h3>
+      <div className="bg-white rounded-3xl shadow-xl border border-slate-200 overflow-hidden">
+        <div className="px-7 py-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+            <h3 className="text-xs font-black text-slate-800 uppercase tracking-[0.2em]">Balanço Patrimonial Consolidado</h3>
+            <div className="flex gap-2">
+              <div className="w-2 h-2 bg-blue-500 rounded-full"></div>
+              <div className="w-2 h-2 bg-emerald-500 rounded-full"></div>
+            </div>
         </div>
-        <div className="grid grid-cols-2 divide-x divide-slate-100">
+        <div className="grid grid-cols-1 md:grid-cols-2 divide-y md:divide-y-0 md:divide-x divide-slate-100">
             {/* Ativos */}
-            <div className="p-4 space-y-4">
-                <h4 className="text-[10px] font-black text-blue-600 uppercase mb-2">Ativos (Aplicações)</h4>
-                <div className="space-y-2">
+            <div className="p-6 bg-slate-50/30">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-1.5 h-4 bg-blue-500 rounded-full"></div>
+                  <h4 className="text-[10px] font-black text-blue-600 uppercase tracking-widest">Ativos (Bens e Direitos)</h4>
+                </div>
+                <div className="space-y-3 mb-8 min-h-[160px]">
                     {assets.map(a => (
-                        <div key={a.id} className="flex justify-between text-xs">
-                            <span className="text-slate-500">{a.name}</span>
-                            <span className="font-mono text-slate-700">R$ {a.balance.toFixed(2)}</span>
+                        <div key={a.id} className="flex justify-between items-center text-xs p-3 bg-white rounded-xl border border-slate-100 shadow-sm">
+                            <span className="text-slate-600 font-bold">{a.name}</span>
+                            <span className="font-mono font-black text-slate-800">R$ {a.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                         </div>
                     ))}
                 </div>
-                <div className="pt-2 border-t border-slate-50 flex justify-between font-bold text-blue-700 text-sm">
-                    <span>Total Ativos</span>
-                    <span>R$ {totalAssets.toFixed(2)}</span>
+                <div className="p-4 bg-blue-600 rounded-2xl flex justify-between items-center shadow-lg shadow-blue-200">
+                    <span className="text-[10px] font-black text-blue-100 uppercase tracking-widest">Total Ativo</span>
+                    <span className="text-lg font-mono font-black text-white">R$ {totalAssets.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
             </div>
             {/* Passivos + PL */}
-            <div className="p-4 space-y-4">
-                <h4 className="text-[10px] font-black text-emerald-600 uppercase mb-2">Passivo + PL (Origens)</h4>
-                <div className="space-y-2">
-                    <p className="text-[9px] font-bold text-slate-400 uppercase">Passivo</p>
-                    {liabilities.map(a => (
-                        <div key={a.id} className="flex justify-between text-xs">
-                            <span className="text-slate-500">{a.name}</span>
-                            <span className="font-mono text-slate-700">R$ {a.balance.toFixed(2)}</span>
-                        </div>
-                    ))}
-                    <p className="text-[9px] font-bold text-slate-400 uppercase pt-2">Patrimônio Líquido</p>
-                    {equity.map(a => (
-                        <div key={a.id} className="flex justify-between text-xs">
-                            <span className="text-slate-500">{a.name}</span>
-                            <span className="font-mono text-slate-700">R$ {a.balance.toFixed(2)}</span>
-                        </div>
-                    ))}
+            <div className="p-6">
+                <div className="flex items-center gap-2 mb-6">
+                  <div className="w-1.5 h-4 bg-emerald-500 rounded-full"></div>
+                  <h4 className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Passivo + PL (Origens)</h4>
                 </div>
-                <div className="pt-2 border-t border-slate-50 flex justify-between font-bold text-emerald-700 text-sm">
-                    <span>Total P+PL</span>
-                    <span>R$ {(totalLiabilities + totalEquity).toFixed(2)}</span>
+                <div className="space-y-6 mb-8 min-h-[160px]">
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-1">Exigibilidade (Dívidas)</p>
+                      <div className="space-y-2">
+                        {liabilities.map(a => (
+                            <div key={a.id} className="flex justify-between items-center text-xs p-2 bg-slate-50 rounded-lg">
+                                <span className="text-slate-500 font-semibold">{a.name}</span>
+                                <span className="font-mono font-bold text-slate-700">R$ {a.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                    <div>
+                      <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest mb-3 border-b border-slate-100 pb-1">Patrimônio Líquido (Sócios)</p>
+                      <div className="space-y-2">
+                        {equity.map(a => (
+                            <div key={a.id} className="flex justify-between items-center text-xs p-2 bg-indigo-50/50 rounded-lg border border-indigo-100/50">
+                                <span className="text-indigo-600 font-bold">{a.name}</span>
+                                <span className="font-mono font-black text-indigo-900">R$ {a.balance.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                        ))}
+                      </div>
+                    </div>
+                </div>
+                <div className="p-4 bg-emerald-600 rounded-2xl flex justify-between items-center shadow-lg shadow-emerald-200">
+                    <span className="text-[10px] font-black text-emerald-100 uppercase tracking-widest">Total P + PL</span>
+                    <span className="text-lg font-mono font-black text-white">R$ {(totalLiabilities + totalEquity).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                 </div>
             </div>
         </div>
       </div>
       
-      <div className="p-4 bg-amber-50 rounded-xl border border-amber-100 flex gap-3">
-          <div className="w-10 h-10 bg-amber-200 rounded-full flex items-center justify-center flex-shrink-0 text-amber-700">
-              <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.989-2.386l-.548-.547z" /></svg>
+      <div className="p-6 bg-indigo-900 rounded-3xl border border-indigo-500/30 flex gap-5 shadow-xl relative overflow-hidden">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/10 rounded-full -mr-16 -mt-16"></div>
+          <div className="w-14 h-14 bg-indigo-500 text-white rounded-2xl flex items-center justify-center flex-shrink-0 shadow-lg border border-indigo-400">
+              <svg className="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>
           </div>
           <div>
-              <p className="text-xs font-bold text-amber-900 mb-1">Dica Estratégica</p>
-              <p className="text-[11px] text-amber-800 leading-tight">Observe que no Módulo 4, seu objetivo é transferir o resultado operacional (DRE) para os Lucros Acumulados no Balanço. Isso consolida sua riqueza!</p>
+              <p className="text-sm font-black text-white mb-2 uppercase tracking-widest">Análise de Sustentabilidade</p>
+              <p className="text-xs text-indigo-200 leading-relaxed font-medium">
+                Observe que no <span className="text-white font-bold">Módulo 4</span>, o seu principal desafio é consolidar o lucro líquido e decidir sua destinação. Lembre-se: O lucro na DRE aumenta o seu Patrimônio Líquido via "Lucros Acumulados". Esse é o ciclo vital de uma empresa saudável!
+              </p>
           </div>
       </div>
     </div>
