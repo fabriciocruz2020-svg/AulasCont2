@@ -1,5 +1,5 @@
 
-import { Account, AccountCategory, TutorialStep, EntryType, SwipeChallenge, Badge, Mission, GameState } from './types';
+import { Account, AccountCategory, TutorialStep, EntryType, SwipeChallenge, Badge, Mission } from './types';
 
 export const INITIAL_ACCOUNTS: Account[] = [
   { id: 'cash', name: 'Caixa (Dinheiro)', category: AccountCategory.Asset, balance: 0 },
@@ -83,16 +83,16 @@ export const TUTORIAL_STEPS: Record<number, TutorialStep[]> = {
     { id: "m3s10", title: "Frete sobre Vendas", instruction: "Pague R$ 40 de frete. (D: Despesas Gerais | C: Caixa)", targetDescription: "Despesas = 400", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 400 },
   ],
   4: [
-    { id: "m4s1", title: "Transferir Receitas", instruction: "Zere as Receitas para Lucros Acumulados. (D: Receitas | C: Lucros Acumulados)", targetDescription: "Receitas = 0", validate: (accs) => accs.find(a => a.id === 'sales')?.balance === 0 },
-    { id: "m4s2", title: "Transferir Custos", instruction: "Zere o CMV para Lucros Acumulados. (D: Lucros Acumulados | C: CMV)", targetDescription: "CMV = 0", validate: (accs) => accs.find(a => a.id === 'cogs')?.balance === 0 },
-    { id: "m4s3", title: "Transferir Despesas", instruction: "Zere as Despesas para Lucros Acumulados. (D: Lucros Acumulados | C: Despesas)", targetDescription: "Despesas = 0", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 0 },
-    { id: "m4s4", title: "Dividendos", instruction: "Pague R$ 100 de dividendos do lucro. (D: Lucros Acumulados | C: Caixa)", targetDescription: "Riqueza saindo para sócios", validate: (accs) => accs.find(a => a.id === 'retained_earnings')?.balance === 1600 },
-    { id: "m4s5", title: "Reserva de Capital", instruction: "Transfira R$ 200 do lucro para reinvestir. (D: Lucros Acumulados | C: Capital Social)", targetDescription: "PL aumenta", validate: (accs) => accs.find(a => a.id === 'capital')?.balance === 1700 },
-    { id: "m4s6", title: "Nova Rodada: Venda", instruction: "Comece novo ciclo: Venda R$ 500. (D: Caixa | C: Receita)", targetDescription: "Ciclo reiniciado", validate: (accs) => accs.find(a => a.id === 'sales')?.balance === 500 },
-    { id: "m4s7", title: "Nova Rodada: Custo", instruction: "Baixe R$ 250 de estoque. (D: CMV | C: Estoque)", targetDescription: "Margem de 50%", validate: (accs) => accs.find(a => a.id === 'cogs')?.balance === 250 },
-    { id: "m4s8", title: "Nova Rodada: Despesa", instruction: "Pague R$ 50 de taxa. (D: Despesas Gerais | C: Caixa)", targetDescription: "Eficiência", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 50 },
-    { id: "m4s9", title: "Fechamento Flash", instruction: "Transfira o lucro líquido (R$ 200) para Lucros Acumulados. (D: Receitas | C: Lucros Acumulados, etc.) - Pode ser em passos separados.", targetDescription: "Siga o padrão", validate: (accs) => accs.find(a => a.id === 'sales')?.balance === 500 },
-    { id: "m4s10", title: "Independência Financeira", instruction: "Zere todas as contas de resultado agora. Parabéns, mestre!", targetDescription: "Empresa madura", validate: (accs) => accs.find(a => a.id === 'retained_earnings')?.balance !== 0 },
+    { id: "m4s1", title: "Encerramento: Receitas", instruction: "Transfira o saldo total de Receitas (R$ 2700) para Lucros Acumulados. (D: Receitas | C: Lucros Acumulados)", targetDescription: "Zerar conta de resultado", validate: (accs) => accs.find(a => a.id === 'sales')?.balance === 0 },
+    { id: "m4s2", title: "Encerramento: Custos", instruction: "Transfira o saldo de CMV (R$ 600) para Lucros Acumulados. (D: Lucros Acumulados | C: CMV)", targetDescription: "Transferir aplicação de custo", validate: (accs) => accs.find(a => a.id === 'cogs')?.balance === 0 },
+    { id: "m4s3", title: "Encerramento: Despesas", instruction: "Transfira o saldo de Despesas (R$ 400) para Lucros Acumulados. (D: Lucros Acumulados | C: Despesas Gerais)", targetDescription: "Zerar despesas operacionais", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 0 },
+    { id: "m4s4", title: "Distribuição de Lucro", instruction: "Pague R$ 500 de dividendos aos sócios. (D: Lucros Acumulados | C: Caixa)", targetDescription: "Reduzir PL e Caixa", validate: (accs) => accs.find(a => a.id === 'retained_earnings')?.balance === 1200 },
+    { id: "m4s5", title: "Reserva Legal", instruction: "Transfira R$ 200 do Lucro para Capital Social como reserva. (D: Lucros Acumulados | C: Capital Social)", targetDescription: "Blindagem do patrimônio", validate: (accs) => accs.find(a => a.id === 'capital')?.balance === 1700 },
+    { id: "m4s6", title: "Novo Ciclo: Atacado", instruction: "Venda R$ 1.000 de mercadorias. (D: Caixa | C: Receitas)", targetDescription: "Retorno da operação", validate: (accs) => accs.find(a => a.id === 'sales')?.balance === 1000 },
+    { id: "m4s7", title: "Novo Ciclo: Reposição", instruction: "Baixe R$ 400 de estoque pelo custo da venda. (D: CMV | C: Estoque)", targetDescription: "Gestão de margem", validate: (accs) => accs.find(a => a.id === 'cogs')?.balance === 400 },
+    { id: "m4s8", title: "Manutenção Preventiva", instruction: "Pague R$ 100 de manutenção. (D: Despesas Gerais | C: Caixa)", targetDescription: "Despesa fixa", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 100 },
+    { id: "m4s9", title: "Amortização de Juros", instruction: "Pague R$ 50 de juros do empréstimo. (D: Despesas Gerais | C: Caixa)", targetDescription: "Custo financeiro", validate: (accs) => accs.find(a => a.id === 'expenses')?.balance === 150 },
+    { id: "m4s10", title: "Independência Financeira", instruction: "Aumente seu capital social em mais R$ 500 com lucro. (D: Lucros Acumulados | C: Capital Social)", targetDescription: "Dominou a contabilidade!", validate: (accs) => accs.find(a => a.id === 'capital')?.balance === 2200 },
   ]
 };
 

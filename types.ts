@@ -30,6 +30,8 @@ export interface Transaction {
   description: string;
   date: Date;
   entries: JournalEntry[];
+  isCorrect?: boolean; // Para modo prática
+  timeTaken?: number;  // Segundos
 }
 
 export interface TutorialStep {
@@ -72,7 +74,8 @@ export interface GameState {
   money: number;
   tutorialCompleted: Record<number, boolean>;
   isTutorialMode: boolean;
+  isPracticeMode: boolean;
   score: number;
-  badges: string[]; // IDs of earned badges
-  completedMissions: string[]; // IDs of completed missions
+  badges: string[]; 
+  completedMissions: string[];
 }

@@ -90,16 +90,23 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onSubmit, o
                   {accounts.map(acc => <option key={acc.id} value={acc.id}>{acc.name}</option>)}
                 </select>
               </div>
-              <div className="w-32">
+              <div className="w-32 group relative">
                 <label className="block text-[9px] uppercase font-black text-slate-400 mb-2 ml-1">Natureza</label>
                 <select 
                   value={entry.type}
                   onChange={(e) => updateEntry(idx, 'type', e.target.value)}
-                  className={`w-full p-3 border-2 rounded-2xl text-xs font-black outline-none transition-all shadow-sm ${entry.type === EntryType.Debit ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
+                  className={`w-full p-3 border-2 rounded-2xl text-xs font-black outline-none transition-all shadow-sm cursor-help ${entry.type === EntryType.Debit ? 'border-blue-200 bg-blue-50 text-blue-700' : 'border-emerald-200 bg-emerald-50 text-emerald-700'}`}
                 >
                   <option value={EntryType.Debit}>DÉBITO (D)</option>
                   <option value={EntryType.Credit}>CRÉDITO (C)</option>
                 </select>
+                {/* Tooltip */}
+                <div className="absolute bottom-full mb-2 left-1/2 -translate-x-1/2 w-48 bg-slate-800 text-white text-[9px] p-2 rounded-lg opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-50 shadow-xl border border-white/10">
+                  {entry.type === EntryType.Debit 
+                    ? "DÉBITO representa uma APLICAÇÃO de recurso (onde o valor foi parar)." 
+                    : "CRÉDITO representa uma ORIGEM de recurso (de onde o valor veio)."}
+                  <div className="absolute top-full left-1/2 -translate-x-1/2 border-8 border-transparent border-t-slate-800"></div>
+                </div>
               </div>
               <div className="w-40">
                 <label className="block text-[9px] uppercase font-black text-slate-400 mb-2 ml-1">Valor Monetário</label>
@@ -172,7 +179,7 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onSubmit, o
                 className="px-6 py-4 border-2 border-indigo-200 bg-indigo-50 text-indigo-700 rounded-2xl font-black hover:bg-indigo-100 transition-all active:scale-95 text-xs uppercase tracking-widest flex items-center gap-2"
             >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2.5" d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.989-2.386l-.548-.547z" /></svg>
-                Consultar Auditor
+                Auditar
             </button>
             <button 
                 type="submit"
@@ -185,23 +192,25 @@ const TransactionForm: React.FC<TransactionFormProps> = ({ accounts, onSubmit, o
                       : 'bg-slate-200 text-slate-400 cursor-not-allowed border-2 border-slate-300 shadow-none'
                 }`}
             >
-                <div className={`absolute inset-0 bg-white/20 transition-transform duration-1000 ${isSuccess ? 'translate-x-full' : '-translate-x-full'} pointer-events-none`}></div>
+                {/* Shine effect */}
+                {!isSuccess && isBalanced && (
+                   <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:animate-[shimmer_1.5s_infinite] pointer-events-none"></div>
+                )}
                 <span className="flex items-center justify-center gap-3">
                     {isSuccess ? (
-                      <>
-                        <svg className="w-5 h-5 animate-bounce" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M5 13l4 4L19 7" /></svg>
-                        Lançamento Registrado!
-                      </>
+                      <div className="flex items-center gap-2 animate-in zoom-in duration-300">
+                        <div className="w-6 h-6 bg-white rounded-full flex items-center justify-center">
+                            <svg className="w-4 h-4 text-emerald-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="4" d="M5 13l4 4L19 7" /></svg>
+                        </div>
+                        Sucesso!
+                      </div>
                     ) : (
                       <>
                         <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="3" d="M9 12l2 2 4-4" /></svg>
-                        Confirmar Partida Dobrada
+                        Confirmar Registro
                       </>
                     )}
                 </span>
-                {isBalanced && !isSuccess && (
-                  <div className="absolute inset-0 bg-indigo-400/20 blur-xl group-hover:opacity-100 opacity-0 transition-opacity"></div>
-                )}
             </button>
         </div>
       </form>

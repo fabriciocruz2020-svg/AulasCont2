@@ -23,6 +23,7 @@ const App: React.FC = () => {
     money: 1000,
     tutorialCompleted: { 1: false, 2: false, 3: false, 4: false },
     isTutorialMode: true,
+    isPracticeMode: false,
     score: 0,
     badges: [],
     completedMissions: [],
@@ -33,6 +34,7 @@ const App: React.FC = () => {
   const [showCompletionOverlay, setShowCompletionOverlay] = useState(false);
   const [activeBadge, setActiveBadge] = useState<Badge | null>(null);
   const [isGamificationOpen, setIsGamificationOpen] = useState(false);
+  const [transactionStartTime, setTransactionStartTime] = useState(Date.now());
 
   const currentTutorialSteps = useMemo(() => TUTORIAL_STEPS[gameState.module] || [], [gameState.module]);
   const currentStep = useMemo(() => currentTutorialSteps[gameState.tutorialStepIndex], [currentTutorialSteps, gameState.tutorialStepIndex]);
@@ -42,7 +44,7 @@ const App: React.FC = () => {
       if (prev.badges.includes(badgeId)) return prev;
       const badge = BADGES.find(b => b.id === badgeId);
       if (badge) setActiveBadge(badge);
-      return { ...prev, badges: [...prev.badges, badgeId], score: prev.score + 5 }; // Bônus de badge
+      return { ...prev, badges: [...prev.badges, badgeId], score: prev.score + 5 };
     });
   }, []);
 
@@ -63,7 +65,7 @@ const App: React.FC = () => {
     const totalCredits = entries.filter(e => e.type === EntryType.Credit).reduce((sum, e) => sum + e.amount, 0);
 
     if (totalDebits !== totalCredits) {
-      alert("Erro: A balança dos lançamentos deve estar equilibrada (Débito = Crédito)!");
+      alert("Erro: A balança dos lançamentos deve estar equilibrada!");
       return;
     }
 
@@ -83,11 +85,13 @@ const App: React.FC = () => {
       return { ...account, balance: newBalance };
     });
 
+    const timeTaken = (Date.now() - transactionStartTime) / 1000;
     const newTransaction: Transaction = {
       id: Math.random().toString(36).substr(2, 9),
       description,
       date: new Date(),
-      entries: [...entries]
+      entries: [...entries],
+      timeTaken
     };
 
     let nextStepIndex = gameState.tutorialStepIndex;
@@ -95,19 +99,21 @@ const App: React.FC = () => {
     let moduleJustFinished = false;
     let addedScore = 0; 
 
-    if (isModeTutorial && currentStep) {
+    if (gameState.isPracticeMode) {
+        // No modo prática, ganha pontos por precisão e velocidade
+        const basePoints = 2;
+        const speedBonus = timeTaken < 15 ? 1 : 0;
+        addedScore = basePoints + speedBonus;
+    } else if (isModeTutorial && currentStep) {
       if (currentStep.validate(newAccounts, newTransaction)) {
         nextStepIndex += 1;
-        addedScore = 1; // 1 pt por acerto no tutorial
+        addedScore = 1;
         
-        if (currentStep.id === 'm1s1') {
-          setTimeout(() => unlockBadge('first_step'), 500);
-        }
+        if (currentStep.id === 'm1s1') setTimeout(() => unlockBadge('first_step'), 500);
 
         if (nextStepIndex >= currentTutorialSteps.length) {
           isModeTutorial = false;
           moduleJustFinished = true;
-          
           if (gameState.module === 1) setTimeout(() => unlockBadge('balance_master'), 500);
           if (gameState.module === 2) setTimeout(() => unlockBadge('dual_mind'), 500);
           if (gameState.module === 3) setTimeout(() => unlockBadge('operational_pro'), 500);
@@ -128,18 +134,13 @@ const App: React.FC = () => {
         isTutorialMode: isModeTutorial,
         score: prev.score + addedScore
       };
-      
-      if (moduleJustFinished) {
-        newState.tutorialCompleted = { ...prev.tutorialCompleted, [prev.module]: true };
-      }
-      
+      if (moduleJustFinished) newState.tutorialCompleted = { ...prev.tutorialCompleted, [prev.module]: true };
       return newState;
     });
 
-    if (moduleJustFinished) {
-      setShowCompletionOverlay(true);
-    }
-  }, [gameState, currentStep, currentTutorialSteps, unlockBadge]);
+    setTransactionStartTime(Date.now());
+    if (moduleJustFinished) setShowCompletionOverlay(true);
+  }, [gameState, currentStep, currentTutorialSteps, unlockBadge, transactionStartTime]);
 
   const handleAuditRequest = async (entries: JournalEntry[], description: string) => {
     setAuditLoading(true);
@@ -156,8 +157,7 @@ const App: React.FC = () => {
 
   const handleSwipeCorrect = () => {
     const nextChallenge = gameState.module2ChallengeIndex + 1;
-    const addedScore = 1; // 1 pt por acerto no swipe
-    
+    const addedScore = 1;
     if (nextChallenge >= SWIPE_CHALLENGES_M2.length) {
       setGameState(prev => ({ 
         ...prev, 
@@ -167,25 +167,26 @@ const App: React.FC = () => {
         score: prev.score + addedScore
       }));
     } else {
-      setGameState(prev => ({ 
-        ...prev, 
-        module2ChallengeIndex: nextChallenge,
-        score: prev.score + addedScore
-      }));
+      setGameState(prev => ({ ...prev, module2ChallengeIndex: nextChallenge, score: prev.score + addedScore }));
     }
   };
 
   const handleModuleChange = (modId: number) => {
     const isUnlocked = modId === 1 || gameState.tutorialCompleted[modId - 1];
     if (!isUnlocked) return;
-
     setGameState(prev => ({
       ...prev,
       module: modId,
       tutorialStepIndex: 0,
       isTutorialMode: !prev.tutorialCompleted[modId],
+      isPracticeMode: false,
       module2ChallengeIndex: modId === 2 && !prev.tutorialCompleted[2] ? 0 : prev.module2ChallengeIndex
     }));
+  };
+
+  const togglePracticeMode = () => {
+    setGameState(prev => ({ ...prev, isPracticeMode: !prev.isPracticeMode, isTutorialMode: false }));
+    setTransactionStartTime(Date.now());
   };
 
   const currentModuleData = MODULES.find(m => m.id === gameState.module);
@@ -195,72 +196,58 @@ const App: React.FC = () => {
     <div className="min-h-screen gradient-bg text-slate-900 pb-20">
       <header className="px-6 py-4 flex justify-between items-center border-b border-white/10 bg-slate-900/50 backdrop-blur-md sticky top-0 z-40">
         <div className="flex items-center gap-3">
-          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/20">
-            A
-          </div>
+          <div className="w-10 h-10 bg-indigo-600 rounded-xl flex items-center justify-center text-white font-black text-xl shadow-lg shadow-indigo-500/20">A</div>
           <div>
             <h1 className="text-white font-bold leading-none">Axioma</h1>
             <span className="text-[10px] text-slate-400 uppercase tracking-widest font-bold">Accounting Simulator</span>
           </div>
         </div>
         
-        <div className="flex items-center gap-6">
+        <div className="flex items-center gap-4">
             <button 
-              onClick={() => setIsGamificationOpen(true)}
-              className="flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2 rounded-xl transition-all"
+              onClick={togglePracticeMode}
+              className={`px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest transition-all ${gameState.isPracticeMode ? 'bg-emerald-500 text-white shadow-lg shadow-emerald-500/20' : 'bg-white/10 text-slate-300 border border-white/10 hover:bg-white/20'}`}
             >
+              {gameState.isPracticeMode ? 'Modo Prática Ativo' : 'Entrar Modo Livre'}
+            </button>
+            <button onClick={() => setIsGamificationOpen(true)} className="flex items-center gap-3 bg-white/10 hover:bg-white/20 border border-white/10 px-4 py-2 rounded-xl transition-all">
               <div className="flex flex-col items-end">
                   <span className="text-[9px] uppercase font-black text-amber-400">Score</span>
                   <span className="text-white text-sm font-mono font-bold leading-none">{gameState.score} PTS</span>
               </div>
-              <div className="w-8 h-8 bg-amber-500 rounded-lg flex items-center justify-center text-lg">🏆</div>
+              <div className="w-8 h-8 bg-amber-50 rounded-lg flex items-center justify-center text-lg">🏆</div>
             </button>
-
-            <div className="hidden md:flex gap-4">
-                <div className="bg-white/5 border border-white/10 px-4 py-2 rounded-xl flex flex-col items-end">
-                    <span className="text-[9px] uppercase font-bold text-slate-500">Progresso</span>
-                    <span className="text-white text-xs font-semibold">{currentModuleData?.title}</span>
-                </div>
-                <div className="bg-indigo-600/20 border border-indigo-500/30 px-4 py-2 rounded-xl flex flex-col items-end">
-                    <span className="text-[9px] uppercase font-bold text-indigo-300">Patrimônio Líquido</span>
-                    <span className="text-indigo-100 text-xs font-bold">
-                        R$ {((gameState.accounts.find(a => a.id === 'capital')?.balance || 0) + (gameState.accounts.find(a => a.id === 'retained_earnings')?.balance || 0)).toLocaleString('pt-BR')}
-                    </span>
-                </div>
-            </div>
         </div>
       </header>
 
       <main className="max-w-6xl mx-auto px-6 mt-8">
         {isSwipePhase ? (
-          <div className="flex flex-col items-center">
-             <CardSwipeGame 
-              challenges={SWIPE_CHALLENGES_M2} 
-              currentIndex={gameState.module2ChallengeIndex}
-              onCorrect={handleSwipeCorrect}
-              onIncorrect={(f) => setAuditFeedback(f)}
-            />
-          </div>
+          <CardSwipeGame challenges={SWIPE_CHALLENGES_M2} currentIndex={gameState.module2ChallengeIndex} onCorrect={handleSwipeCorrect} onIncorrect={(f) => setAuditFeedback(f)} />
         ) : (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             <div className="lg:col-span-5 space-y-8">
-                {gameState.isTutorialMode && currentStep ? (
-                  <TutorialGuide 
-                    step={currentStep} 
-                    currentStepIndex={gameState.tutorialStepIndex}
-                    totalSteps={currentTutorialSteps.length}
-                  />
+                {gameState.isTutorialMode && currentStep && !gameState.isPracticeMode ? (
+                  <TutorialGuide step={currentStep} currentStepIndex={gameState.tutorialStepIndex} totalSteps={currentTutorialSteps.length} />
+                ) : gameState.isPracticeMode ? (
+                  <div className="bg-emerald-900 text-white p-7 rounded-3xl shadow-2xl border-2 border-emerald-500/40 animate-in zoom-in duration-500">
+                    <h3 className="text-xl font-black mb-2 uppercase tracking-tight">Arena de Prática</h3>
+                    <p className="text-emerald-100 text-sm mb-4">Realize transações livremente. Lançamentos rápidos e corretos garantem bônus de pontuação!</p>
+                    <div className="flex items-center gap-4 text-[11px] font-bold bg-black/20 p-4 rounded-2xl">
+                      <div className="w-2 h-2 bg-emerald-400 rounded-full animate-ping"></div>
+                      <span>Simulador de Mercado Livre Ativo</span>
+                    </div>
+                  </div>
                 ) : (
-                  <div className="bg-white p-6 rounded-2xl shadow-xl border border-slate-200 animate-in fade-in zoom-in-95 duration-500">
-                      <div className="flex items-center gap-2 mb-2">
-                          <span className="bg-emerald-100 text-emerald-700 text-xs font-bold px-2 py-0.5 rounded-full uppercase">Módulo Concluído</span>
-                          <h2 className="text-xl font-bold text-slate-800">{currentModuleData?.description}</h2>
+                  <div className="bg-white p-7 rounded-3xl shadow-xl border border-slate-200">
+                      <div className="flex items-center gap-3 mb-4">
+                          <span className="bg-emerald-100 text-emerald-700 text-[10px] font-black px-3 py-1 rounded-full uppercase tracking-widest">Módulo Master</span>
+                          <h2 className="text-xl font-black text-slate-800">{currentModuleData?.title} Concluído</h2>
                       </div>
-                      <p className="text-sm text-slate-500 mb-4">Você dominou os 10 passos deste módulo. Siga em frente!</p>
-                      <div className="space-y-2">
+                      <p className="text-sm text-slate-500 mb-6 font-medium">Você dominou a teoria. Continue praticando no Modo Livre ou revisite os fundamentos.</p>
+                      <div className="grid grid-cols-1 gap-2">
                         {currentModuleData?.objectives.map((obj, i) => (
-                           <div key={i} className="flex items-center gap-2 text-xs text-slate-600">
-                             <svg className="w-4 h-4 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                           <div key={i} className="flex items-center gap-3 text-xs text-slate-600 bg-slate-50 p-2 rounded-lg">
+                             <div className="w-5 h-5 bg-emerald-500 rounded-full flex items-center justify-center text-white"><svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg></div>
                              {obj}
                            </div>
                         ))}
@@ -268,43 +255,45 @@ const App: React.FC = () => {
                   </div>
                 )}
 
-                {gameState.module === 4 ? (
-                    <FinancialReports accounts={gameState.accounts} />
-                ) : (
-                    <BalanceScale accounts={gameState.accounts} />
-                )}
+                {gameState.module === 4 ? <FinancialReports accounts={gameState.accounts} /> : <BalanceScale accounts={gameState.accounts} />}
             </div>
 
             <div className="lg:col-span-7 space-y-8">
-                <TransactionForm 
-                    accounts={gameState.accounts} 
-                    onSubmit={handleTransaction}
-                    onAudit={handleAuditRequest}
-                />
+                <TransactionForm accounts={gameState.accounts} onSubmit={handleTransaction} onAudit={handleAuditRequest} />
 
-                <div className="bg-white rounded-2xl shadow-sm border border-slate-200 overflow-hidden">
-                    <div className="px-6 py-4 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
-                        <h3 className="font-bold text-slate-800 uppercase text-xs tracking-widest">Livro Diário</h3>
-                        <div className="text-[10px] font-black text-slate-400 bg-slate-100 px-2 py-0.5 rounded uppercase">Registros: {gameState.transactions.length}</div>
+                <div className="bg-white rounded-3xl shadow-sm border border-slate-200 overflow-hidden">
+                    <div className="px-7 py-5 bg-slate-50 border-b border-slate-200 flex justify-between items-center">
+                        <h3 className="font-black text-slate-800 uppercase text-xs tracking-widest">Diário de Operações</h3>
+                        <div className="text-[10px] font-black text-slate-400 bg-slate-100 px-3 py-1 rounded-full uppercase">Total: {gameState.transactions.length}</div>
                     </div>
-                    <div className="divide-y divide-slate-100 max-h-[400px] overflow-y-auto">
+                    <div className="divide-y divide-slate-100 max-h-[450px] overflow-y-auto">
                         {gameState.transactions.length === 0 ? (
-                            <div className="p-12 text-center text-slate-300 italic text-sm">Nenhum evento registrado ainda.</div>
+                            <div className="p-16 text-center text-slate-300 italic text-sm font-medium">Os livros estão em branco. Comece a registrar.</div>
                         ) : (
                             gameState.transactions.map((t) => (
-                                <div key={t.id} className="p-4 hover:bg-slate-50/50 transition-colors">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <h4 className="font-semibold text-sm text-slate-700">{t.description}</h4>
-                                        <span className="text-[10px] font-bold text-slate-400">{t.date.toLocaleTimeString()}</span>
+                                <div key={t.id} className="p-6 hover:bg-slate-50/80 transition-all group">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <div>
+                                          <h4 className="font-black text-base text-slate-800 group-hover:text-indigo-600 transition-colors">{t.description}</h4>
+                                          <div className="flex gap-2 mt-1">
+                                            <span className="text-[9px] font-black text-slate-400 uppercase tracking-tighter">ID: {t.id}</span>
+                                            {t.timeTaken && <span className="text-[9px] font-black text-indigo-400 uppercase tracking-tighter">• {t.timeTaken.toFixed(1)}s de execução</span>}
+                                          </div>
+                                        </div>
+                                        <div className="bg-slate-100 px-3 py-1 rounded-lg text-[10px] font-black text-slate-500">{t.date.toLocaleTimeString()}</div>
                                     </div>
-                                    <div className="space-y-1">
+                                    <div className="bg-white p-4 rounded-2xl border border-slate-100 space-y-2 shadow-sm">
                                         {t.entries.map((e, idx) => (
-                                            <div key={idx} className="flex justify-between text-xs">
-                                                <span className={`flex items-center gap-2 ${e.type === EntryType.Debit ? 'text-blue-500 font-medium' : 'pl-6 text-emerald-500'}`}>
-                                                    <span className="text-[9px] font-black w-4">{e.type === EntryType.Debit ? 'D' : 'C'}</span>
+                                            <div key={idx} className="flex justify-between items-center text-xs">
+                                                <div className="flex items-center gap-3">
+                                                  <div className={`w-6 h-6 rounded-lg flex items-center justify-center font-black text-[9px] ${e.type === EntryType.Debit ? 'bg-blue-100 text-blue-600' : 'bg-emerald-100 text-emerald-600 ml-4'}`}>
+                                                    {e.type === EntryType.Debit ? 'D' : 'C'}
+                                                  </div>
+                                                  <span className={`font-bold ${e.type === EntryType.Debit ? 'text-slate-700' : 'text-slate-500'}`}>
                                                     {gameState.accounts.find(a => a.id === e.accountId)?.name}
-                                                </span>
-                                                <span className="font-mono text-slate-600">R$ {e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
+                                                  </span>
+                                                </div>
+                                                <span className="font-mono font-black text-slate-900">R$ {e.amount.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</span>
                                             </div>
                                         ))}
                                     </div>
@@ -318,67 +307,38 @@ const App: React.FC = () => {
         )}
       </main>
 
-      <AiAuditorPanel 
-        isLoading={auditLoading} 
-        feedback={auditFeedback} 
-        onClose={() => setAuditFeedback(null)} 
-      />
+      <AiAuditorPanel isLoading={auditLoading} feedback={auditFeedback} onClose={() => setAuditFeedback(null)} />
 
       {showCompletionOverlay && (
-        <ModuleCompletionOverlay 
-          moduleNumber={gameState.module} 
-          onContinue={() => {
+        <ModuleCompletionOverlay moduleNumber={gameState.module} onContinue={() => {
             setShowCompletionOverlay(false);
-            if (gameState.module < 4) {
-              handleModuleChange(gameState.module + 1);
-            }
-          }} 
-        />
+            if (gameState.module < 4) handleModuleChange(gameState.module + 1);
+        }} />
       )}
 
-      {activeBadge && (
-        <BadgeEarnedToast 
-          badge={activeBadge} 
-          onClose={() => setActiveBadge(null)} 
-        />
-      )}
+      {activeBadge && <BadgeEarnedToast badge={activeBadge} onClose={() => setActiveBadge(null)} />}
+      <GamificationPanel state={gameState} isOpen={isGamificationOpen} onClose={() => setIsGamificationOpen(false)} />
 
-      <GamificationPanel 
-        state={gameState} 
-        isOpen={isGamificationOpen} 
-        onClose={() => setIsGamificationOpen(false)} 
-      />
-
-      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/90 backdrop-blur-xl border border-white/20 p-2 rounded-2xl flex gap-2 shadow-2xl z-40 overflow-x-auto max-w-[95vw]">
+      <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 bg-slate-900/95 backdrop-blur-2xl border border-white/20 p-2.5 rounded-3xl flex gap-2 shadow-2xl z-40 overflow-x-auto max-w-[95vw]">
         {MODULES.map((m) => {
           const isUnlocked = m.id === 1 || gameState.tutorialCompleted[m.id - 1];
-          const isActive = gameState.module === m.id;
+          const isActive = gameState.module === m.id && !gameState.isPracticeMode;
           const isDone = gameState.tutorialCompleted[m.id];
-          
           return (
-            <button 
-              key={m.id}
-              onClick={() => isUnlocked && handleModuleChange(m.id)}
-              disabled={!isUnlocked}
-              className={`px-5 py-2.5 rounded-xl text-xs font-bold transition-all relative flex items-center gap-2 whitespace-nowrap ${
-                isActive 
-                  ? 'bg-indigo-600 text-white shadow-lg' 
-                  : isUnlocked 
-                    ? 'text-slate-400 hover:text-white hover:bg-white/5' 
-                    : 'text-slate-600 cursor-not-allowed'
-              }`}
-            >
-              {!isUnlocked && (
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>
-              )}
+            <button key={m.id} onClick={() => isUnlocked && handleModuleChange(m.id)} disabled={!isUnlocked} className={`px-6 py-3 rounded-2xl text-[11px] font-black transition-all relative flex items-center gap-2 whitespace-nowrap uppercase tracking-widest ${isActive ? 'bg-indigo-600 text-white shadow-xl shadow-indigo-500/30' : isUnlocked ? 'text-slate-400 hover:text-white hover:bg-white/10' : 'text-slate-700 cursor-not-allowed'}`}>
+              {!isUnlocked && <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clipRule="evenodd" /></svg>}
               Módulo {m.id}
-              {isDone && (
-                <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_8px_rgba(16,185,129,0.8)]"></div>
-              )}
+              {isDone && <div className="w-2 h-2 bg-emerald-500 rounded-full shadow-[0_0_10px_rgba(16,185,129,0.8)]"></div>}
             </button>
           );
         })}
       </nav>
+      <style>{`
+        @keyframes shimmer {
+          0% { transform: translateX(-100%); }
+          100% { transform: translateX(100%); }
+        }
+      `}</style>
     </div>
   );
 };
